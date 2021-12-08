@@ -51,12 +51,12 @@ class Game
         instance_variables.each do |var|
             game[var.itself] = instance_variable_get(var)
         end
-        game.to_yaml
-    end
-
-    def save_yaml(array)
+        #file = YAML.parse_stream(File.read('saved_games.yml'))
+        #File.open('saved_games.yml','a') do |file|
+        #    file.write(game.to_yaml)
+        #end
         File.open('saved_games.yml','a') do |file|
-            file.write(array)
+            file.write(game.to_yaml)
         end
     end
 
@@ -70,7 +70,7 @@ class Game
             guess = gets.gsub("\n","").downcase
         end
         if guess == 'save'
-            save_yaml(save_game())
+            save_game()
             'save_exit'
         else
             check_guess(guess)
@@ -90,18 +90,17 @@ class Game
         end
     end
 
-    def Game.continue_game(game_number)
-        game_to_continue = ''
-        YAML.load_stream(File.open("saved_games.yml",'r')).each do |game|
-            game_to_continue = game if game[:@game_number] == game_number
+    def backup_game(game_number)
+        games = YAML.load_stream(File.open("saved_games.yml",'r'))
+        games.each_with_index do |game,index|
+            if game[:@game_number] == game_number
+                game.each do |key, value|
+                    self.instance_variable_set(key,value)
+                end
+            end
         end
-        Game.new.backup_game_data(game_to_continue)
-    end
-
-    def backup_game_data(game_to_continue)
-        game_to_continue.each do |key, value|
-            self.instance_variable_set(key,value)
-        end
+        games.reject! {|game| game[:@game_number]==game_number}
+        File.open("saved_games.yml", 'w') { |f| f.puts games.map(&:to_yaml) }
         self
     end
 
@@ -114,28 +113,21 @@ class Game
     end
 end
 
-def game_id()
-    
-end
-
 def welcome()
     puts "Hi, would you like to play a hangman game?"
     answer = gets.gsub("\n", '').downcase
     answer2 = ''
     if answer == 'y'
-        until answer2 == 'y' || answer2 == 'n'
-            puts "Would you like to continue one of the saved games(type 'y') or start a new game(type 'n')?"
+        until answer2 == 's' || answer2 == 'n'
+            puts "Would you like to start a new game(type 'n') or continue one of the saved games(type 's')?"
             answer2 = gets.gsub("\n",'').downcase
-            if answer2 == 'y'
+            if answer2 == 's'
                 Game.show_saved_games()
                 game_number = gets.to_i
-                game_backup = Game.continue_game(game_number)
-                game_backup.play_game()
+                Game.new.backup_game(game_number).play_game()
             elsif answer2 == 'n'
                 puts "What's your name?"
-                player_name = gets.gsub("\n",'')
-                game = Game.new(player_name)
-                game.play_game()
+                Game.new(gets.gsub("\n",'')).play_game()
             end
         end
     else
