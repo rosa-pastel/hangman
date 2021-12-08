@@ -16,10 +16,7 @@ class Game
 
     def pick_random_word()
         random_word = ''
-            while random_word.length < 5 || random_word.length > 12
-                random_number = rand(@@dictionary.length)
-                random_word = @@dictionary[random_number].gsub(" ","").gsub("\n","")
-            end
+        random_word = @@dictionary[rand(@@dictionary.length)].gsub(" ","").gsub("\n","") while 12 < random_word.length || random_word.length < 5
         random_word
     end
 
@@ -44,6 +41,7 @@ class Game
         end
         @wrong_guesses += 1 if is_guess_wrong
         @word_guessed_right = true unless @gamespace.include?('_')
+        exit_game = false
     end
 
     def save_game()
@@ -51,40 +49,37 @@ class Game
         instance_variables.each do |var|
             game[var.itself] = instance_variable_get(var)
         end
-        #file = YAML.parse_stream(File.read('saved_games.yml'))
-        #File.open('saved_games.yml','a') do |file|
-        #    file.write(game.to_yaml)
-        #end
         File.open('saved_games.yml','a') do |file|
             file.write(game.to_yaml)
         end
+        exit_game = true
     end
 
-    def play_round()
+    def get_guess()
         guess = ''
         puts "\n--------------------------------------------------------------------------"
         until guess.length == 1 || guess == 'save'
-            puts "\nYou have #{8-@wrong_guesses} chances to be wrong, #{@player_name}. Please enter the letter you wanna try."
+            puts "\nYou have #{8-@wrong_guesses} chances left to be wrong, #{@player_name}. Please enter the letter you wanna try."
             puts "You can save the state of your game and continue later too. Type 'save' to do that."
             puts "\nGame Status: #{@gamespace}\n"
             guess = gets.gsub("\n","").downcase
         end
-        if guess == 'save'
-            save_game()
-            'save_exit'
-        else
-            check_guess(guess)
-        end
+        guess
+    end
+
+    def play_round()
+        guess = get_guess()
+        guess == 'save' ? save_game() : check_guess(guess)
     end
 
     def play_game()
-        round_ends = ''
-        until @word_guessed_right || @wrong_guesses >= 8 || round_ends == 'save_exit'
-            round_ends = play_round()
+        exit_game = false
+        until @word_guessed_right || @wrong_guesses >= 8 || exit_game == true
+            exit_game = play_round()
         end
-        if round_ends == 'save_exit'
+        if exit_game == true
             puts "The game was saved successfully. You can continue later."
-        else
+        else 
             @word_guessed_right ? puts("Congratulations, #{@player_name}! You found the word.") : puts("You lost, #{@player_name}.")
             puts "The word was #{@word}"
         end
@@ -94,9 +89,7 @@ class Game
         games = YAML.load_stream(File.open("saved_games.yml",'r'))
         games.each_with_index do |game,index|
             if game[:@game_number] == game_number
-                game.each do |key, value|
-                    self.instance_variable_set(key,value)
-                end
+                game.each { |key, value| self.instance_variable_set(key,value) }
             end
         end
         games.reject! {|game| game[:@game_number]==game_number}
@@ -105,7 +98,7 @@ class Game
     end
 
     def Game.show_saved_games()
-        puts "---------------------------Saved Games-------------------------\n"
+        puts "\n---------------------------Saved Games-------------------------\n"
         YAML.load_stream(File.open("saved_games.yml",'r')).each do |game|
             puts "#{game[:@player_name]}'s game from #{game[:@date]}. Game Number: #{game[:@game_number]}"
         end
@@ -116,16 +109,14 @@ end
 def welcome()
     puts "Hi, would you like to play a hangman game?"
     answer = gets.gsub("\n", '').downcase
-    answer2 = ''
-    if answer == 'y'
-        until answer2 == 's' || answer2 == 'n'
+    if answer == 'y' || answer == 'yes'
+        until answer == 's' || answer == 'n'
             puts "Would you like to start a new game(type 'n') or continue one of the saved games(type 's')?"
-            answer2 = gets.gsub("\n",'').downcase
-            if answer2 == 's'
+            answer = gets.gsub("\n",'').downcase
+            if answer == 's'
                 Game.show_saved_games()
-                game_number = gets.to_i
-                Game.new.backup_game(game_number).play_game()
-            elsif answer2 == 'n'
+                Game.new.backup_game(gets.to_i).play_game()
+            elsif answer == 'n'
                 puts "What's your name?"
                 Game.new(gets.gsub("\n",'')).play_game()
             end
@@ -134,5 +125,6 @@ def welcome()
         puts 'OK, bye.'
     end
 end
+
 File.open("saved_games.yml", 'w') unless File.exists?("saved_games.yml")
 welcome()
