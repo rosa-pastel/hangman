@@ -134,5 +134,5 @@ def welcome()
         puts 'OK, bye.'
     end
 end
-
+File.open("saved_games.yml", 'w') unless File.exists?("saved_games.yml")
 welcome()
